@@ -28,8 +28,8 @@ jobs:
         run: |
           python skint_crawler.py
 
-      - name: Upload output files as artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: freenyc-events-${{ github.run_number }}
-          path: output/
+#      - name: Upload output files as artifact
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: freenyc-events-${{ github.run_number }}
+#          path: output/
