@@ -1,14 +1,37 @@
-# Node.js
-node_modules
-.next
-out
-.env
-.env.local
-.DS_Store
+name: Daily Update Skint Events
 
-# Ignore everything in output/
-output/*
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Daily at 12:00 UTC
+  workflow_dispatch:
 
-# But allow generated files to be committed
-!output/*.json
-!output/*.md
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # ✅ Required to allow pushing via GITHUB_TOKEN
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install openai beautifulsoup4 requests
+
+      - name: Run Skint Crawler
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: python scripts/skint_crawler_gpt_cleaned.py
+
+      - name: Commit results
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git pull origin main || true
+          git add output/*.json output/*.md || true
+          git commit -m "auto: update skint events" || echo "No changes to commit"
+          git push origin main
