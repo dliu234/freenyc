@@ -1,6 +1,14 @@
+# Node.js
 node_modules
 .next
+out
 .env
-output/*.json
-output/*.md
-__pycache__/
+.env.local
+.DS_Store
+
+# Ignore the entire output folder by default
+output/
+
+# But allow these generated files to be committed
+!output/*.json
+!output/*.md
