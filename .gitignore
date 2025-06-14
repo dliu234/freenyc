@@ -6,9 +6,9 @@ out
 .env.local
 .DS_Store
 
-# Ignore the entire output folder by default
-output/
+# Ignore everything in output/
+output/*
 
-# But allow these generated files to be committed
+# But allow generated files to be committed
 !output/*.json
 !output/*.md
