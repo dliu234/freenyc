@@ -2,12 +2,14 @@ name: Daily Update Skint Events
 
 on:
   schedule:
-    - cron: '15 14 * * *'  # Run every day at 14:15 UTC (10:15 AM US Eastern Time)
+    - cron: '0 12 * * *'  # Daily at 12:00 UTC
   workflow_dispatch:
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # ✅ Required to allow pushing via GITHUB_TOKEN
 
     steps:
       - uses: actions/checkout@v3
@@ -29,6 +31,7 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
+          git pull origin main || true
           git add output/*.json output/*.md || true
           git commit -m "auto: update skint events" || echo "No changes to commit"
-          git push
+          git push origin main
