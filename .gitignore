@@ -1,0 +1,6 @@
+node_modules
+.next
+.env
+output/*.json
+output/*.md
+__pycache__/
