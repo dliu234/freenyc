@@ -17,7 +17,16 @@ export default function Home({ content }: HomeProps) {
 
 export async function getStaticProps() {
   const dir = path.join(process.cwd(), 'output')
-  const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().reverse()
-  const content = fs.readFileSync(path.join(dir, files[0]), 'utf8')
+  let content = "⚠️ No events available yet. Please check back later."
+
+  try {
+    const files = fs.readdirSync(dir).filter(f => f.endsWith('.md')).sort().reverse()
+    if (files.length > 0) {
+      content = fs.readFileSync(path.join(dir, files[0]), 'utf8')
+    }
+  } catch (e) {
+    console.warn("output/ directory or Markdown file not found.")
+  }
+
   return { props: { content } }
 }
