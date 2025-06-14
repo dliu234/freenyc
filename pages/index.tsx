@@ -2,7 +2,11 @@ import fs from 'fs'
 import path from 'path'
 import Markdown from 'react-markdown'
 
-export default function Home({ content }) {
+interface HomeProps {
+  content: string
+}
+
+export default function Home({ content }: HomeProps) {
   return (
     <main className="p-6 max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">🗽 Free NYC Events (via TheSkint)</h1>
