@@ -2,7 +2,7 @@ name: Daily Update Skint Events
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # Run every day at 12:00 UTC (8:00 AM US Eastern Time)
+    - cron: '15 14 * * *'  # Run every day at 14:15 UTC (10:15 AM US Eastern Time)
   workflow_dispatch:
 
 jobs:
