@@ -40,18 +40,31 @@ def fetch_all_articles():
 
     return all_articles
 
-def extract_all_links_from_article(article):
-    """提取文章中所有的链接，特别关注 >> 链接"""
+def extract_markdown_links(text):
+    """提取文本中的 Markdown 格式链接 [>>](URL)"""
+    # 匹配 Markdown 链接格式：[text](url)
+    markdown_link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
     links = []
     
-    # 查找所有的链接
+    matches = re.findall(markdown_link_pattern, text)
+    for link_text, url in matches:
+        links.append({
+            'text': link_text.strip(),
+            'url': url.strip(),
+            'is_read_more': link_text.strip() == '>>'
+        })
+    
+    return links
+
+def extract_html_links(article):
+    """提取 HTML 中的 <a> 标签链接"""
+    links = []
     all_links = article.find_all("a", href=True)
     
     for a in all_links:
         href = a.get("href", "").strip()
         link_text = a.get_text(strip=True)
         
-        # 跳过空链接
         if not href:
             continue
             
@@ -61,25 +74,37 @@ def extract_all_links_from_article(article):
         elif not href.startswith(('http://', 'https://')):
             href = urljoin(SOURCE_URL, href)
         
-        # 记录链接信息
         links.append({
             'url': href,
             'text': link_text,
-            'is_read_more': link_text == ">>"
+            'is_read_more': link_text == ">>",
+            'type': 'html'
         })
     
     return links
 
-def extract_article_link(article):
-    """提取文章的主要链接，优先选择 >> 链接"""
-    links = extract_all_links_from_article(article)
+def find_best_link(article, content_text):
+    """优先从内容文本中找 Markdown [>>] 链接，其次是 HTML 链接"""
     
-    # 优先查找 >> 链接
-    for link in links:
+    # 1. 首先尝试从内容文本中提取 Markdown 链接
+    markdown_links = extract_markdown_links(content_text)
+    
+    # 优先选择 [>>] 链接
+    for link in markdown_links:
         if link['is_read_more']:
+            print(f"🔗 Found >> markdown link: {link['url']}")
             return link['url']
     
-    # 如果没有 >> 链接，尝试从标题中获取链接
+    # 2. 如果没有 >> markdown 链接，尝试 HTML 链接
+    html_links = extract_html_links(article)
+    
+    # 优先选择 >> HTML 链接
+    for link in html_links:
+        if link['is_read_more']:
+            print(f"🔗 Found >> HTML link: {link['url']}")
+            return link['url']
+    
+    # 3. 尝试从标题中获取链接
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
@@ -89,13 +114,22 @@ def extract_article_link(article):
                 href = urljoin(SOURCE_URL, href)
             elif not href.startswith(('http://', 'https://')):
                 href = urljoin(SOURCE_URL, href)
+            print(f"🔗 Found title link: {href}")
             return href
     
-    # 最后的备选方案：返回第一个有效的外部链接
-    for link in links:
+    # 4. 返回第一个有效的 markdown 链接
+    for link in markdown_links:
         if link['url'] != SOURCE_URL and not link['url'].endswith('#'):
+            print(f"🔗 Found first markdown link: {link['url']}")
             return link['url']
     
+    # 5. 返回第一个有效的 HTML 链接
+    for link in html_links:
+        if link['url'] != SOURCE_URL and not link['url'].endswith('#'):
+            print(f"🔗 Found first HTML link: {link['url']}")
+            return link['url']
+    
+    print(f"🔗 No valid link found, using default: {SOURCE_URL}")
     return SOURCE_URL
 
 def extract_text_from_articles(articles):
@@ -104,22 +138,44 @@ def extract_text_from_articles(articles):
         title_el = article.find("h2") or article.find("h1")
         title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-        # 获取主要链接
-        main_link = extract_article_link(article)
-        
-        # 获取所有链接信息
-        all_links = extract_all_links_from_article(article)
-
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
 
-        # 构建完整文本，包含所有链接信息
-        links_info = "\n".join([f"Link: {link['text']} -> {link['url']}" for link in all_links])
+        # 获取最佳链接
+        main_link = find_best_link(article, content)
         
-        full_text = f"{title}\n\n{content}\n\nMain link: {main_link}\n\nAll links:\n{links_info}"
+        # 提取所有链接信息用于调试
+        markdown_links = extract_markdown_links(content)
+        html_links = extract_html_links(article)
+        
+        # 构建链接信息字符串
+        all_links_info = []
+        if markdown_links:
+            all_links_info.append("Markdown links:")
+            for link in markdown_links:
+                all_links_info.append(f"  [{link['text']}] -> {link['url']}")
+        
+        if html_links:
+            all_links_info.append("HTML links:")
+            for link in html_links:
+                all_links_info.append(f"  {link['text']} -> {link['url']}")
+        
+        links_debug = "\n".join(all_links_info)
+        
+        full_text = f"""Title: {title}
+
+Content:
+{content}
+
+Main link: {main_link}
+
+All links found:
+{links_debug}
+"""
 
         if len(content) > 80:
             event_texts.append(full_text)
+            print(f"✅ Article {i+1}: {title[:50]}... (main link: {main_link})")
         else:
             print(f"⚠️ Skipped article {i+1}, content too short")
 
@@ -127,10 +183,14 @@ def extract_text_from_articles(articles):
     return event_texts
 
 def extract_event_summary(text):
-    """改进的GPT提示，更好地处理链接"""
+    """改进的GPT提示，确保使用正确的链接"""
     prompt = f"""
 From the following article text, extract and summarize only the **free public events in New York City**.
-Pay special attention to the links provided in the text - use the actual URLs from the "All links" section.
+
+IMPORTANT: Use the EXACT URLs from the "All links found" section. Look for:
+1. Markdown links with [>>] - these are the preferred "read more" links
+2. The "Main link" if it's relevant to the event
+3. Any other specific event URLs mentioned in the text
 
 Respond only in markdown bullet list format like this:
 
@@ -138,20 +198,23 @@ Respond only in markdown bullet list format like this:
   📍 Location  
   🕒 Time / Date  
   📝 Description  
-  🔗 [Link](actual_url_from_the_text)
+  🔗 [Link](use_exact_url_from_the_links_section)
 
-Important: Use the ACTUAL URLs from the "All links" section, not placeholder links.
-If no free NYC events are found, return nothing.
+Rules:
+- Only include FREE events in NYC
+- Use ACTUAL URLs from the links section, never make up URLs
+- If an event doesn't have a specific link, you can omit the link line
+- If no free NYC events are found, return nothing
 
 Text:
-{text[:4000]}
+{text[:4500]}
 """
 
     try:
         result = openai.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4
+            temperature=0.3
         )
         content = result.choices[0].message.content.strip()
 
@@ -163,28 +226,36 @@ Text:
         if content.endswith("```"):
             content = content.removesuffix("```").strip()
 
-        print(f"🧾 GPT result sample:\n{content[:150]}...\n")
+        print(f"🧾 GPT result preview:\n{content[:200]}...\n")
         return content
     except Exception as e:
         print(f"❌ GPT call failed: {e}")
         return ""
 
 def save_outputs(markdown_data, all_articles, today):
-    """保存输出文件"""
+    """保存输出文件，包含调试信息"""
+    # 保存 markdown 结果
     with open(f"{OUTPUT_DIR}/events_gpt_{today}.md", "w", encoding="utf-8") as mf:
+        mf.write("# NYC Free Events - The Skint\n\n")
+        mf.write(f"Generated on: {today}\n\n")
         mf.write(markdown_data)
-    with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
+    
+    # 保存原始数据用于调试
+    with open(f"{OUTPUT_DIR}/events_raw_{today}.json", "w", encoding="utf-8") as jf:
         json.dump(all_articles, jf, indent=2, ensure_ascii=False)
+    
     print("✅ Output files saved to /output")
+    print(f"   - events_gpt_{today}.md (formatted events)")
+    print(f"   - events_raw_{today}.json (raw data for debugging)")
 
 def main():
-    print("🚀 Starting The Skint crawler...")
+    print("🚀 Starting The Skint crawler with improved link extraction...")
     
     # 获取文章
     articles = fetch_all_articles()
     print(f"📰 Total articles found: {len(articles)}")
     
-    # 提取文本
+    # 提取文本和链接
     article_texts = extract_text_from_articles(articles)
 
     # 处理每篇文章
@@ -192,15 +263,17 @@ def main():
     for i, text in enumerate(article_texts):
         print(f"🔍 Processing article {i+1}/{len(article_texts)}")
         summary = extract_event_summary(text)
-        if summary:
+        if summary and summary.strip():
             summaries.append(summary)
 
     # 保存结果
     today = datetime.now().strftime("%Y-%m-%d")
-    final_md = "\n\n".join(summaries)
+    final_md = "\n\n---\n\n".join(summaries) if summaries else "No events found."
     save_outputs(final_md, article_texts, today)
 
-    print(f"🎯 Script completed. Generated {len(summaries)} event summaries.")
+    print(f"🎯 Script completed!")
+    print(f"   📊 Generated {len(summaries)} event summaries")
+    print(f"   📁 Files saved in '{OUTPUT_DIR}' directory")
 
 if __name__ == "__main__":
     main()
