@@ -199,7 +199,7 @@ export default function Home({ content }: HomeProps) {
               borderRadius: '50%'
             }}></div>
             <span style={{ color: '#d1fae5', fontSize: '1rem', fontWeight: '500' }}>
-              Live • {currentTime} • Updated every minute
+              Live • {currentTime} • Info Updated Everyday!
             </span>
           </div>
           
@@ -229,7 +229,7 @@ export default function Home({ content }: HomeProps) {
             border: '1px solid rgba(255,255,255,0.2)'
           }}>
             <span style={{ color: 'white', fontSize: '1.1rem', fontWeight: '500' }}>
-              🎯 Curated by TheSkint • 🆓 100% Free • 🗽 All 5 Boroughs
+               🆓 100% Free • 🗽 All 5 Boroughs
             </span>
           </div>
         </div>
