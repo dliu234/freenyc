@@ -38,34 +38,14 @@ def fetch_all_articles():
 
     return all_articles
 
-def extract_article_link(article):
-    # ✅ 正确：从 <h2><a href=...> 提取 permalink
-    h2 = article.find("h2")
-    if h2:
-        a = h2.find("a", href=True)
-        if a and a["href"]:
-            href = a["href"]
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
-
-    # fallback（如果没有 h2）：尝试从首个有效链接获取
-    for a in article.find_all("a", href=True):
-        href = a["href"]
-        if href and not href.startswith("#"):
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
-
-    return SOURCE_URL
-
 def extract_text_from_articles(articles):
     event_texts = []
     for i, article in enumerate(articles):
         title_el = article.find("h2") or article.find("h1")
         title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-        link = extract_article_link(article)
+        link_el = article.find("a", href=True)
+        link = link_el["href"] if link_el else SOURCE_URL
 
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
@@ -82,20 +62,18 @@ def extract_text_from_articles(articles):
 
 def extract_event_summary(text):
     prompt = f"""
-You are an event summarizer.
-
-From the following article, extract only the **free events in New York City** and format each in Markdown like this:
+From the following article text, extract and summarize only the **free public events in New York City**.
+Respond only in markdown bullet list format like this:
 
 - 🎉 **Event Title**  
   📍 Location  
   🕒 Time / Date  
-  📝 One-line Description  
-  🔗 [Link](full link from article)
+  📝 Description  
+  🔗 [Link](https://...)
 
-**Important**: Use the exact full URL from the "Full link:" line in the article. Do not use example.com or "..." or made-up links.
+If no free NYC events are found, return nothing.
 
-Here is the article:
-
+Text:
 {text[:3000]}
 """
 
@@ -107,18 +85,12 @@ Here is the article:
         )
         content = result.choices[0].message.content.strip()
 
-        if content.startswith("
-markdown"):
-            content = content.removeprefix("
-markdown").strip()
-        if content.startswith("
-"):
-            content = content.removeprefix("
-").strip()
-        if content.endswith("
-"):
-            content = content.removesuffix("
-").strip()
+        if content.startswith("```markdown"):
+            content = content.removeprefix("```markdown").strip()
+        if content.startswith("```"):
+            content = content.removeprefix("```").strip()
+        if content.endswith("```"):
+            content = content.removesuffix("```").strip()
 
         print(f"🧾 GPT result sample:\n{content[:150]}...\n")
         return content
