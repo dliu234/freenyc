@@ -90,11 +90,15 @@ Respond only in markdown bullet list format like this:
   📍 Location  
   🕒 Time / Date  
   📝 Description  
-  🔗 [Link](https://...)
+  🔗 [Link](actual full URL from the article)
 
-If no free NYC events are found, return nothing.
+Important:
+- Use the **exact URL from the "Full link:" line at the end of the article**.
+- Do NOT use placeholders like `[Link](...)` or `[More Info](...)`.
+- If no free NYC events are found, return nothing.
 
-Text:
+Here is the article text:
+
 {text[:3000]}
 """
 
