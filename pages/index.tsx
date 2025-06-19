@@ -509,17 +509,6 @@ export default function Home({ content }: HomeProps) {
           }}>
             <p style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
               An NYU Student Project
-              <a 
-                href="https://theskint.com" 
-                style={{ 
-                  color: '#ffd93d', 
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.3)'
-                }}
-              >
-                TheSkint
-              </a>
             </p>
             <p style={{ fontSize: '0.9rem', opacity: 0.8 }}>
               Made with modern web technologies • Real-time updates • Responsive design
