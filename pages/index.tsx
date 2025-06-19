@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { useState, useEffect } from 'react';
-import { Calendar, MapPin, Clock, ExternalLink, Search, Filter, Star, Users, Music, Palette, Coffee } from 'lucide-react';
 
 interface Event {
   title: string;
@@ -87,14 +86,14 @@ export default function Home({ content }: HomeProps) {
   }, [searchTerm, selectedCategory, events]);
 
   const categories = [
-    { id: 'all', label: 'All Events', icon: Star, color: 'bg-purple-500' },
-    { id: 'music', label: 'Music', icon: Music, color: 'bg-red-500' },
-    { id: 'art', label: 'Art & Culture', icon: Palette, color: 'bg-pink-500' },
-    { id: 'food', label: 'Food & Drink', icon: Coffee, color: 'bg-orange-500' },
-    { id: 'entertainment', label: 'Entertainment', icon: Users, color: 'bg-blue-500' },
-    { id: 'outdoor', label: 'Outdoor', icon: MapPin, color: 'bg-green-500' },
-    { id: 'education', label: 'Education', icon: Calendar, color: 'bg-indigo-500' },
-    { id: 'other', label: 'Other', icon: Star, color: 'bg-gray-500' }
+    { id: 'all', label: 'All Events', icon: '⭐', color: 'bg-purple-500' },
+    { id: 'music', label: 'Music', icon: '🎵', color: 'bg-red-500' },
+    { id: 'art', label: 'Art & Culture', icon: '🎨', color: 'bg-pink-500' },
+    { id: 'food', label: 'Food & Drink', icon: '☕', color: 'bg-orange-500' },
+    { id: 'entertainment', label: 'Entertainment', icon: '🎭', color: 'bg-blue-500' },
+    { id: 'outdoor', label: 'Outdoor', icon: '🌳', color: 'bg-green-500' },
+    { id: 'education', label: 'Education', icon: '📚', color: 'bg-indigo-500' },
+    { id: 'other', label: 'Other', icon: '✨', color: 'bg-gray-500' }
   ];
 
   const getCategoryCount = (categoryId: string) => {
@@ -139,7 +138,7 @@ export default function Home({ content }: HomeProps) {
             {/* Search Bar */}
             <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">🔍</span>
                 <input
                   type="text"
                   placeholder="Search events, locations, or descriptions..."
@@ -153,7 +152,7 @@ export default function Home({ content }: HomeProps) {
             {/* Category Filter */}
             <div className="lg:w-64">
               <div className="relative">
-                <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg">🔽</span>
                 <select
                   className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white appearance-none"
                   value={selectedCategory}
@@ -172,7 +171,6 @@ export default function Home({ content }: HomeProps) {
           {/* Category Pills */}
           <div className="flex flex-wrap gap-3 mt-6">
             {categories.map(category => {
-              const Icon = category.icon;
               const count = getCategoryCount(category.id);
               const isActive = selectedCategory === category.id;
               
@@ -186,7 +184,7 @@ export default function Home({ content }: HomeProps) {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <span className="text-lg">{category.icon}</span>
                   <span className="font-medium">{category.label}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full ${
                     isActive ? 'bg-white bg-opacity-20' : 'bg-white'
@@ -204,7 +202,6 @@ export default function Home({ content }: HomeProps) {
           {filteredEvents.length > 0 ? (
             filteredEvents.map((event, index) => {
               const category = categories.find(cat => cat.id === event.category) || categories[0];
-              const Icon = category.icon;
               
               return (
                 <div
@@ -214,7 +211,7 @@ export default function Home({ content }: HomeProps) {
                   {/* Category Header */}
                   <div className={`${category.color} p-4 text-white`}>
                     <div className="flex items-center gap-3">
-                      <Icon className="w-6 h-6" />
+                      <span className="text-2xl">{category.icon}</span>
                       <span className="font-semibold text-sm uppercase tracking-wide">
                         {category.label}
                       </span>
@@ -230,12 +227,12 @@ export default function Home({ content }: HomeProps) {
                     {/* Event Details */}
                     <div className="space-y-3 mb-6">
                       <div className="flex items-start gap-3 text-gray-600">
-                        <MapPin className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                        <span className="text-red-500 text-lg mt-0.5">📍</span>
                         <span className="text-sm line-clamp-2">{event.location}</span>
                       </div>
                       
                       <div className="flex items-center gap-3 text-gray-600">
-                        <Clock className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                        <span className="text-blue-500 text-lg">🕒</span>
                         <span className="text-sm">{event.time}</span>
                       </div>
                     </div>
@@ -253,7 +250,7 @@ export default function Home({ content }: HomeProps) {
                       className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 hover:shadow-lg transform hover:scale-105"
                     >
                       <span>Learn More</span>
-                      <ExternalLink className="w-4 h-4" />
+                      <span className="text-lg">🔗</span>
                     </a>
                   </div>
                 </div>
