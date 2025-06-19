@@ -83,20 +83,18 @@ def extract_text_from_articles(articles):
 
 def extract_event_summary(text):
     prompt = f"""
-You are an event summarizer.
-
-From the following article, extract only the **free public events in New York City** and format each in Markdown like this:
+From the following article text, extract and summarize only the **free public events in New York City**.
+Respond only in markdown bullet list format like this:
 
 - 🎉 **Event Title**  
   📍 Location  
   🕒 Time / Date  
-  📝 One-line Description  
+  📝 Description  
   🔗 [Link](https://...)
 
-**Important**: Only use the real URL provided in the "Full link:" line at the end of the article. Do not use `...`, `example.com`, or any made-up links.
+If no free NYC events are found, return nothing.
 
-Here is the article:
-
+Text:
 {text[:3000]}
 """
 
