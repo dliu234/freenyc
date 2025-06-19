@@ -39,7 +39,6 @@ def fetch_all_articles():
     return all_articles
 
 def extract_article_link(article):
-    # ✅ 正确：从 <h2><a href=...> 提取 permalink
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
@@ -49,7 +48,6 @@ def extract_article_link(article):
                 href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
             return href
 
-    # fallback（如果没有 h2）：尝试从首个有效链接获取
     for a in article.find_all("a", href=True):
         href = a["href"]
         if href and not href.startswith("#"):
@@ -69,6 +67,11 @@ def extract_text_from_articles(articles):
 
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
+
+        # ✅ 提取正文中的所有外部链接（如 >>）
+        external_links = [a["href"] for a in content_el.find_all("a", href=True)]
+        if external_links:
+            content += "\n\nRelated links:\n" + "\n".join(external_links)
 
         full_text = f"{title}\n\n{content}\n\nFull link: {link}"
 
@@ -90,9 +93,9 @@ From the following article, extract only the **free events in New York City** an
   📍 Location  
   🕒 Time / Date  
   📝 One-line Description  
-  🔗 [Link](full link from article)
+  🔗 [Link](URL of the event)
 
-**Important**: Use the exact full URL from the "Full link:" line in the article. Do not use example.com or "..." or made-up links.
+**Important**: If there is a specific event link in the article or under 'Related links', use it as the Link. Do not return example.com or "..." or "not provided".
 
 Here is the article:
 
