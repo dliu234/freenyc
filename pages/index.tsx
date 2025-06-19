@@ -34,24 +34,26 @@ export default function Home({ content }: HomeProps) {
   // Parse markdown content to extract events
   useEffect(() => {
     const parseEvents = () => {
+      // Use a simpler approach to parse events
       const eventPattern = /- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/g;
-      const eventMatches = content.match(eventPattern);
+      const matches = [];
+      let match;
       
-      if (eventMatches) {
-        const parsedEvents = eventMatches.map(match => {
-          const parts = match.match(/- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/);
-          if (parts) {
-            return {
-              title: parts[1].trim(),
-              location: parts[2].trim(),
-              time: parts[3].trim(),
-              description: parts[4].trim(),
-              link: parts[5].trim(),
-              category: categorizeEvent(parts[1], parts[4])
-            };
-          }
-          return null;
-        }).filter(Boolean) as Event[];
+      while ((match = eventPattern.exec(content)) !== null) {
+        matches.push(match);
+      }
+      
+      if (matches.length > 0) {
+        const parsedEvents = matches.map(match => {
+          return {
+            title: match[1].trim(),
+            location: match[2].trim(),
+            time: match[3].trim(),
+            description: match[4].trim(),
+            link: match[5].trim(),
+            category: categorizeEvent(match[1], match[4])
+          };
+        });
         
         setEvents(parsedEvents);
         setFilteredEvents(parsedEvents);
