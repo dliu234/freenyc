@@ -39,16 +39,24 @@ def fetch_all_articles():
     return all_articles
 
 def extract_article_link(article):
+    # ✅ 正确：从 <h2><a href=...> 提取 permalink
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
         if a and a["href"]:
             href = a["href"]
-            return href if href.startswith("http") else f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            if "theskint.com" not in href:
+                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            return href
+
+    # fallback（如果没有 h2）：尝试从首个有效链接获取
     for a in article.find_all("a", href=True):
         href = a["href"]
         if href and not href.startswith("#"):
-            return href if href.startswith("http") else f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            if "theskint.com" not in href:
+                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            return href
+
     return SOURCE_URL
 
 def extract_text_from_articles(articles):
