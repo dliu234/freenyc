@@ -39,7 +39,16 @@ def fetch_all_articles():
     return all_articles
 
 def extract_article_link(article):
-    # ✅ Extract permalink from <h2><a>
+    # Prefer the last >> link if available
+    all_links = article.find_all("a", href=True)
+    for a in reversed(all_links):
+        if a.get_text(strip=True) == ">>":
+            href = a["href"]
+            if "theskint.com" not in href:
+                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            return href
+
+    # fallback: try permalink from <h2><a>
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
@@ -48,6 +57,7 @@ def extract_article_link(article):
             if "theskint.com" not in href:
                 href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
             return href
+
     return SOURCE_URL
 
 def extract_text_from_articles(articles):
