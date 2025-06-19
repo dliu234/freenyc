@@ -40,15 +40,40 @@ def fetch_all_articles():
     return all_articles
 
 def extract_article_link(article):
-    """Improved link extraction function, prioritizing >> links"""
-    # First look for >> links
+    """Improved link extraction function with detailed debugging"""
+    print(f"\n=== DEBUG: Extracting link for article ===")
+    
+    # Get article title for debugging
+    title_el = article.find("h2") or article.find("h1")
+    title = title_el.get_text(strip=True) if title_el else "Untitled"
+    print(f"Article title: {title}")
+    
+    # Find all links and debug them
     all_links = article.find_all("a", href=True)
+    print(f"Total links found: {len(all_links)}")
+    
+    for i, a in enumerate(all_links):
+        text = a.get_text(strip=True)
+        href = a.get("href", "")
+        print(f"  Link {i+1}: text='{text}' href='{href}'")
+    
+    # First look for >> links
     for a in all_links:
-        if a.get_text(strip=True) == ">>":
+        text = a.get_text(strip=True)
+        if text == ">>" or ">>" in text:
             href = a["href"]
-            # Use urljoin to properly handle relative links
             full_url = urljoin(SOURCE_URL, href)
-            print(f"Found >> link: {full_url}")
+            print(f"✅ Found >> link: {full_url}")
+            return full_url
+
+    # Look for "Read more" or similar patterns
+    read_more_patterns = ["read more", "continue reading", "full article", "more details"]
+    for a in all_links:
+        text = a.get_text(strip=True).lower()
+        if any(pattern in text for pattern in read_more_patterns):
+            href = a["href"]
+            full_url = urljoin(SOURCE_URL, href)
+            print(f"✅ Found read-more link: {full_url}")
             return full_url
 
     # Fallback: look for title links
@@ -58,31 +83,43 @@ def extract_article_link(article):
         if a and a["href"]:
             href = a["href"]
             full_url = urljoin(SOURCE_URL, href)
-            print(f"Found title link: {full_url}")
+            print(f"✅ Found title link: {full_url}")
             return full_url
 
-    # Fallback: look for any article-like links
+    # Look for the longest/most specific link
+    candidate_links = []
     for a in all_links:
         href = a.get("href", "")
         # Skip obviously non-article links
-        if any(skip in href.lower() for skip in ['#', 'mailto:', 'tel:', 'javascript:', '.jpg', '.png', '.gif']):
+        skip_patterns = ['#', 'mailto:', 'tel:', 'javascript:', '.jpg', '.png', '.gif', 
+                        'facebook.com', 'twitter.com', 'instagram.com', 'theskint.com/page/']
+        if any(skip in href.lower() for skip in skip_patterns):
             continue
         if href and len(href) > 1:
             full_url = urljoin(SOURCE_URL, href)
-            print(f"Found fallback link: {full_url}")
-            return full_url
+            candidate_links.append((full_url, len(href), href))
+    
+    if candidate_links:
+        # Sort by URL length (longer URLs are usually more specific)
+        candidate_links.sort(key=lambda x: x[1], reverse=True)
+        best_link = candidate_links[0][0]
+        print(f"✅ Found best candidate link: {best_link}")
+        return best_link
 
-    print("Warning: No suitable link found, using base URL")
+    print("❌ Warning: No suitable link found, using base URL")
     return SOURCE_URL
 
 def extract_text_with_links(articles):
     """Extract article text while preserving link information"""
     event_data = []
+    print(f"\n=== Processing {len(articles)} articles ===")
+    
     for i, article in enumerate(articles):
+        print(f"\n--- Article {i+1} ---")
         title_el = article.find("h2") or article.find("h1")
         title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-        # Extract link
+        # Extract link with detailed debugging
         link = extract_article_link(article)
 
         # Extract content
@@ -99,10 +136,11 @@ def extract_text_with_links(articles):
 
         if len(content) > 80:
             event_data.append(article_data)
+            print(f"✅ Added article: {title[:50]}... -> {link}")
         else:
-            print(f"Skipped article {i+1}, content too short")
+            print(f"❌ Skipped article {i+1}, content too short ({len(content)} chars)")
 
-    print(f"Extracted {len(event_data)} usable article blocks")
+    print(f"\n=== Final: Extracted {len(event_data)} usable articles ===")
     return event_data
 
 def smart_truncate_with_link_priority(text, link, max_chars=4000):
