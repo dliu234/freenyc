@@ -107,12 +107,18 @@ Here is the article:
         )
         content = result.choices[0].message.content.strip()
 
-        if content.startswith("```markdown"):
-            content = content.removeprefix("```markdown").strip()
-        if content.startswith("```"):
-            content = content.removeprefix("```").strip()
-        if content.endswith("```"):
-            content = content.removesuffix("```").strip()
+        if content.startswith("
+markdown"):
+            content = content.removeprefix("
+markdown").strip()
+        if content.startswith("
+"):
+            content = content.removeprefix("
+").strip()
+        if content.endswith("
+"):
+            content = content.removesuffix("
+").strip()
 
         print(f"🧾 GPT result sample:\n{content[:150]}...\n")
         return content
