@@ -218,7 +218,7 @@ export default function Home({ content }: HomeProps) {
             marginBottom: '2rem',
             fontWeight: '300'
           }}>
-            Discover {events.length} amazing free events across all five boroughs
+            {events.length} amazing free events across all five boroughs
           </p>
           <div style={{
             display: 'inline-block',
