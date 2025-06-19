@@ -4,6 +4,7 @@ import openai
 import os
 import json
 from datetime import datetime
+from urllib.parse import urljoin
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
@@ -11,6 +12,7 @@ SOURCE_URL = "https://theskint.com"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 
 def fetch_all_articles():
     page = 1
@@ -38,27 +40,30 @@ def fetch_all_articles():
 
     return all_articles
 
+
 def extract_article_link(article):
-    # Prefer the last >> link if available
+    # Prefer <a> with text '>>'
     all_links = article.find_all("a", href=True)
     for a in reversed(all_links):
         if a.get_text(strip=True) == ">>":
             href = a["href"]
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
+            return urljoin(SOURCE_URL, href)
 
-    # fallback: try permalink from <h2><a>
+    # fallback: permalink in <h2><a>
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
         if a and a["href"]:
-            href = a["href"]
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
+            return urljoin(SOURCE_URL, a["href"])
+
+    # final fallback: any <a> in article
+    for a in all_links:
+        href = a["href"]
+        if href and not href.startswith("#"):
+            return urljoin(SOURCE_URL, href)
 
     return SOURCE_URL
+
 
 def extract_text_from_articles(articles):
     event_texts = []
@@ -80,6 +85,7 @@ def extract_text_from_articles(articles):
 
     print(f"📝 Extracted {len(event_texts)} usable article blocks")
     return event_texts
+
 
 def extract_event_summary(text):
     prompt = f"""
@@ -119,12 +125,14 @@ Text:
         print(f"❌ GPT call failed: {e}")
         return ""
 
+
 def save_outputs(markdown_data, all_articles, today):
     with open(f"{OUTPUT_DIR}/events_gpt_{today}.md", "w", encoding="utf-8") as mf:
         mf.write(markdown_data)
     with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
         json.dump(all_articles, jf, indent=2, ensure_ascii=False)
     print("✅ Output files saved to /output")
+
 
 def main():
     articles = fetch_all_articles()
@@ -142,6 +150,7 @@ def main():
     save_outputs(final_md, article_texts, today)
 
     print("🎯 Script completed.")
+
 
 if __name__ == "__main__":
     main()
