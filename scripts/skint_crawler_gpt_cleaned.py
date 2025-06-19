@@ -92,9 +92,7 @@ Respond only in markdown bullet list format like this:
   📝 Description  
   🔗 [Link](https://...)
 
-Important instructions:
-- Always use `[Link](...)` as the link text — do NOT use 'More Info', 'Details', or any other words.
-- Use only the actual link in the article, from the "Full link:" line. Do not generate or make up URLs.
+If no free NYC events are found, return nothing.
 
 Text:
 {text[:3000]}
