@@ -25,11 +25,14 @@ export default function Home({ content }: HomeProps) {
   // Parse markdown content to extract events
   useEffect(() => {
     const parseEvents = () => {
-      const eventMatches = content.match(/- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/gs);
+      // Use a simpler regex pattern that's compatible with older ES versions
+      const eventPattern = /- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/g;
+      const eventMatches = content.match(eventPattern);
       
       if (eventMatches) {
         const parsedEvents = eventMatches.map(match => {
-          const parts = match.match(/- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/s);
+          // Use a more specific match for each event
+          const parts = match.match(/- 🎉 \*\*(.*?)\*\*\s*📍 (.*?)\s*🕒 (.*?)\s*📝 (.*?)\s*🔗 \[Link\]\((.*?)\)/);
           if (parts) {
             return {
               title: parts[1].trim(),
