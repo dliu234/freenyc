@@ -68,7 +68,7 @@ def extract_text_from_articles(articles):
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
 
-        # ✅ 提取正文中的所有外部链接（如 >>）
+        # ✅ 加入正文中所有 <a href> 外链
         external_links = [a["href"] for a in content_el.find_all("a", href=True)]
         if external_links:
             content += "\n\nRelated links:\n" + "\n".join(external_links)
@@ -93,9 +93,13 @@ From the following article, extract only the **free events in New York City** an
   📍 Location  
   🕒 Time / Date  
   📝 One-line Description  
-  🔗 [Link](URL of the event)
+  🔗 [Link](https://full-link)
 
-**Important**: If there is a specific event link in the article or under 'Related links', use it as the Link. Do not return example.com or "..." or "not provided".
+**Important rules**:
+- Always include the Link line — never leave it empty.
+- If there is a link in the article or in "Related links" or "Full link", use it.
+- Use exactly the full URL — copy and paste it.
+- Never write example.com, "...", "not provided", or leave [Link] blank.
 
 Here is the article:
 
