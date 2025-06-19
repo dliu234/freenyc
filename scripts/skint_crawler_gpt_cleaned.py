@@ -2,95 +2,147 @@ import requests
 from bs4 import BeautifulSoup
 import openai
 import os
-import datetime
 import json
+from datetime import datetime
 
-# Load OpenAI API key
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Output directories
-os.makedirs("output", exist_ok=True)
+SOURCE_URL = "https://theskint.com"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+OUTPUT_DIR = "output"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Crawl event data from theskint.com
-def crawl_events():
-    url = "https://theskint.com/"
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
+def fetch_all_articles():
+    page = 1
+    all_articles = []
 
-    articles = soup.find_all("article")
-    results = []
+    while True:
+        url = f"{SOURCE_URL}/page/{page}/" if page > 1 else SOURCE_URL
+        print(f"🌐 Fetching: {url}")
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=10)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+            articles = soup.find_all("article")
 
-    for article in articles:
-        title_tag = article.find("h2", class_="entry-title")
-        content_tag = article.find("div", class_="entry-content")
+            if not articles:
+                print(f"🚫 No <article> found on page {page}, stopping.")
+                break
 
-        if not title_tag or not content_tag:
-            continue
+            print(f"✅ Page {page}: Found {len(articles)} <article> blocks")
+            all_articles.extend(articles)
+            page += 1
+        except Exception as e:
+            print(f"❌ Failed to fetch page {page}: {e}")
+            break
 
-        title = title_tag.get_text(strip=True)
-        # Extract the full content, including embedded links and descriptions
-        content = content_tag.get_text(separator="\n", strip=True)
+    return all_articles
 
-        results.append({
-            "title": title,
-            "content": content,
-            "link": None  # Removed link extraction; handled by GPT from content
-        })
+def extract_article_link(article):
+    # ✅ 正确：从 <h2><a href=...> 提取 permalink
+    h2 = article.find("h2")
+    if h2:
+        a = h2.find("a", href=True)
+        if a and a["href"]:
+            href = a["href"]
+            if "theskint.com" not in href:
+                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            return href
 
-    return results
+    # fallback（如果没有 h2）：尝试从首个有效链接获取
+    for a in article.find_all("a", href=True):
+        href = a["href"]
+        if href and not href.startswith("#"):
+            if "theskint.com" not in href:
+                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+            return href
 
-# Format event list with GPT into clean markdown
-def generate_markdown(events):
-    prompt = f"""You are formatting the following NYC events into clean markdown.
+    return SOURCE_URL
 
-Please output in the following format for each event:
+def extract_text_from_articles(articles):
+    event_texts = []
+    for i, article in enumerate(articles):
+        title_el = article.find("h2") or article.find("h1")
+        title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-### 🎉 Event Title  
-📍 Location  
-🕒 Date and Time  
-📝 One-sentence Description  
-🔗 [Event Link](https://example.com)
+        link = extract_article_link(article)
 
-Make sure:
-- Output one block for each event
-- Do not include backticks or markdown code blocks
-- Use consistent spacing and clean formatting
-- If the link is not available, omit the link line
+        content_el = article.find("div", class_="post-content") or article
+        content = content_el.get_text(separator="\n", strip=True)
 
-Here are the events:
+        full_text = f"{title}\n\n{content}\n\nFull link: {link}"
 
-{json.dumps(events[:20], indent=2)}
+        if len(content) > 80:
+            event_texts.append(full_text)
+        else:
+            print(f"⚠️ Skipped article {i+1}, content too short")
+
+    print(f"📝 Extracted {len(event_texts)} usable article blocks")
+    return event_texts
+
+def extract_event_summary(text):
+    prompt = f"""
+You are an event summarizer.
+
+From the following article, extract only the **free events in New York City** and format each in Markdown like this:
+
+- 🎉 **Event Title**  
+  📍 Location  
+  🕒 Time / Date  
+  📝 One-line Description  
+  🔗 [Link](full link from article)
+
+**Important**: Use the exact full URL from the "Full link:" line in the article. Do not use example.com or "..." or made-up links.
+
+Here is the article:
+
+{text[:3000]}
 """
-    response = openai.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.4,
-    )
-    return response.choices[0].message.content.strip()
 
-# Main flow
+    try:
+        result = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4
+        )
+        content = result.choices[0].message.content.strip()
+
+        if content.startswith("```markdown"):
+            content = content.removeprefix("```markdown").strip()
+        if content.startswith("```"):
+            content = content.removeprefix("```").strip()
+        if content.endswith("```"):
+            content = content.removesuffix("```").strip()
+
+        print(f"🧾 GPT result sample:\n{content[:150]}...\n")
+        return content
+    except Exception as e:
+        print(f"❌ GPT call failed: {e}")
+        return ""
+
+def save_outputs(markdown_data, all_articles, today):
+    with open(f"{OUTPUT_DIR}/events_gpt_{today}.md", "w", encoding="utf-8") as mf:
+        mf.write(markdown_data)
+    with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
+        json.dump(all_articles, jf, indent=2, ensure_ascii=False)
+    print("✅ Output files saved to /output")
+
 def main():
-    print("🔍 Crawling events from theskint.com...")
-    events = crawl_events()
+    articles = fetch_all_articles()
+    article_texts = extract_text_from_articles(articles)
 
-    if not events:
-        print("❌ No events found.")
-        return
+    summaries = []
+    for i, text in enumerate(article_texts):
+        print(f"🔍 Processing article {i+1}")
+        summary = extract_event_summary(text)
+        if summary:
+            summaries.append(summary)
 
-    print(f"✅ Retrieved {len(events)} events.")
-    markdown = generate_markdown(events)
+    today = datetime.now().strftime("%Y-%m-%d")
+    final_md = "\n\n".join(summaries)
+    save_outputs(final_md, article_texts, today)
 
-    date_str = datetime.date.today().isoformat()
-    md_path = f"output/events_md_{date_str}.md"
-    json_path = f"output/events_raw_{date_str}.json"
-
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(markdown)
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(events, f, ensure_ascii=False, indent=2)
-
-    print(f"✅ Markdown saved to {md_path}")
-    print(f"✅ Raw JSON saved to {json_path}")
+    print("🎯 Script completed.")
 
 if __name__ == "__main__":
     main()
