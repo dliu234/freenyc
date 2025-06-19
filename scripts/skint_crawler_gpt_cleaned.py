@@ -38,14 +38,28 @@ def fetch_all_articles():
 
     return all_articles
 
+def extract_article_link(article):
+    # Try to find <h2><a href="..."> first
+    h2 = article.find("h2")
+    if h2:
+        a = h2.find("a", href=True)
+        if a and a["href"]:
+            href = a["href"]
+            return href if href.startswith("http") else f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+    # Fallback: first reasonable <a>
+    for a in article.find_all("a", href=True):
+        href = a["href"]
+        if href and not href.startswith("#"):
+            return href if href.startswith("http") else f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
+    return SOURCE_URL
+
 def extract_text_from_articles(articles):
     event_texts = []
     for i, article in enumerate(articles):
         title_el = article.find("h2") or article.find("h1")
         title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-        link_el = article.find("a", href=True)
-        link = link_el["href"] if link_el else SOURCE_URL
+        link = extract_article_link(article)
 
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
