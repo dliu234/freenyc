@@ -6,14 +6,17 @@ import json
 from datetime import datetime
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
 SOURCE_URL = "https://theskint.com"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def fetch_articles(max_pages=3):
+def fetch_all_articles():
+    page = 1
     all_articles = []
-    for page in range(1, max_pages + 1):
+
+    while True:
         url = f"{SOURCE_URL}/page/{page}/" if page > 1 else SOURCE_URL
         print(f"🌐 Fetching: {url}")
         try:
@@ -21,10 +24,18 @@ def fetch_articles(max_pages=3):
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, "html.parser")
             articles = soup.find_all("article")
+
+            if not articles:
+                print(f"🚫 No <article> found on page {page}, stopping.")
+                break
+
             print(f"✅ Page {page}: Found {len(articles)} <article> blocks")
             all_articles.extend(articles)
+            page += 1
         except Exception as e:
             print(f"❌ Failed to fetch page {page}: {e}")
+            break
+
     return all_articles
 
 def extract_text_from_articles(articles):
@@ -74,7 +85,6 @@ Text:
         )
         content = result.choices[0].message.content.strip()
 
-        # 清理 markdown fencing
         if content.startswith("```markdown"):
             content = content.removeprefix("```markdown").strip()
         if content.startswith("```"):
@@ -96,7 +106,7 @@ def save_outputs(markdown_data, all_articles, today):
     print("✅ Output files saved to /output")
 
 def main():
-    articles = fetch_articles(max_pages=3)
+    articles = fetch_all_articles()
     article_texts = extract_text_from_articles(articles)
 
     summaries = []
