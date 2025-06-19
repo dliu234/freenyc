@@ -39,14 +39,12 @@ def fetch_all_articles():
     return all_articles
 
 def extract_article_link(article):
-    # Try to find <h2><a href="..."> first
     h2 = article.find("h2")
     if h2:
         a = h2.find("a", href=True)
         if a and a["href"]:
             href = a["href"]
             return href if href.startswith("http") else f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-    # Fallback: first reasonable <a>
     for a in article.find_all("a", href=True):
         href = a["href"]
         if href and not href.startswith("#"):
@@ -76,18 +74,20 @@ def extract_text_from_articles(articles):
 
 def extract_event_summary(text):
     prompt = f"""
-From the following article text, extract and summarize only the **free public events in New York City**.
-Respond only in markdown bullet list format like this:
+You are an event summarizer.
+
+From the following article, extract only the **free events in New York City** and format each in Markdown like this:
 
 - 🎉 **Event Title**  
   📍 Location  
   🕒 Time / Date  
-  📝 Description  
-  🔗 [Link](https://...)
+  📝 One-line Description  
+  🔗 [Link](https://example.com/specific-page)
 
-If no free NYC events are found, return nothing.
+**Important**: Always use the full original URL after "Full link:". Never replace it with "..." or truncate it.
 
-Text:
+Here is the article:
+
 {text[:3000]}
 """
 
