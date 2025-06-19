@@ -28,16 +28,13 @@ def crawl_events():
             continue
 
         title = title_tag.get_text(strip=True)
-        content_text = content_tag.get_text(separator="\n", strip=True)
-
-        # Try to find the real ">>" link
-        more_link_tag = content_tag.find("a", string=">>")
-        link = more_link_tag["href"] if more_link_tag else url
+        # Extract the full content, including embedded links and descriptions
+        content = content_tag.get_text(separator="\n", strip=True)
 
         results.append({
             "title": title,
-            "content": content_text,
-            "link": link
+            "content": content,
+            "link": None  # Removed link extraction; handled by GPT from content
         })
 
     return results
@@ -57,8 +54,8 @@ Please output in the following format for each event:
 Make sure:
 - Output one block for each event
 - Do not include backticks or markdown code blocks
-- Use exactly the real links provided
-- Keep consistent spacing
+- Use consistent spacing and clean formatting
+- If the link is not available, omit the link line
 
 Here are the events:
 
