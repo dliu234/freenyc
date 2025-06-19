@@ -38,71 +38,48 @@ def fetch_all_articles():
 
     return all_articles
 
-def extract_article_link(article):
-    h2 = article.find("h2")
-    if h2:
-        a = h2.find("a", href=True)
-        if a and a["href"]:
-            href = a["href"]
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
-
-    for a in article.find_all("a", href=True):
-        href = a["href"]
-        if href and not href.startswith("#"):
-            if "theskint.com" not in href:
-                href = f"{SOURCE_URL.rstrip('/')}/{href.lstrip('/')}"
-            return href
-
-    return SOURCE_URL
-
 def extract_text_from_articles(articles):
-    event_texts = []
+    event_items = []
+
     for i, article in enumerate(articles):
         title_el = article.find("h2") or article.find("h1")
         title = title_el.get_text(strip=True) if title_el else "Untitled"
 
-        link = extract_article_link(article)
-
         content_el = article.find("div", class_="post-content") or article
         content = content_el.get_text(separator="\n", strip=True)
 
-        # ✅ 加入正文中所有 <a href> 外链
-        external_links = [a["href"] for a in content_el.find_all("a", href=True)]
-        if external_links:
-            content += "\n\nRelated links:\n" + "\n".join(external_links)
-
-        full_text = f"{title}\n\n{content}\n\nFull link: {link}"
+        # extract link
+        event_link = None
+        all_links = content_el.find_all("a", href=True)
+        for a in all_links:
+            if ">>" in a.get_text(strip=True):
+                event_link = a["href"]
+                break
+        if not event_link and all_links:
+            event_link = all_links[0]["href"]
 
         if len(content) > 80:
-            event_texts.append(full_text)
+            event_items.append({
+                "title": title,
+                "raw_text": content,
+                "link": event_link or SOURCE_URL
+            })
         else:
             print(f"⚠️ Skipped article {i+1}, content too short")
 
-    print(f"📝 Extracted {len(event_texts)} usable article blocks")
-    return event_texts
+    print(f"📝 Extracted {len(event_items)} event items")
+    return event_items
 
-def extract_event_summary(text):
+def summarize_event(text):
     prompt = f"""
-You are an event summarizer.
-
-From the following article, extract only the **free events in New York City** and format each in Markdown like this:
+Summarize the following free public event in New York City in Markdown format:
 
 - 🎉 **Event Title**  
   📍 Location  
   🕒 Time / Date  
   📝 One-line Description  
-  🔗 [Link](https://full-link)
 
-**Important rules**:
-- Always include the Link line — never leave it empty.
-- If there is a link in the article or in "Related links" or "Full link", use it.
-- Use exactly the full URL — copy and paste it.
-- Never write example.com, "...", "not provided", or leave [Link] blank.
-
-Here is the article:
-
+Text:
 {text[:3000]}
 """
 
@@ -114,6 +91,7 @@ Here is the article:
         )
         content = result.choices[0].message.content.strip()
 
+        # Clean markdown fences if any
         if content.startswith("```markdown"):
             content = content.removeprefix("```markdown").strip()
         if content.startswith("```"):
@@ -121,35 +99,37 @@ Here is the article:
         if content.endswith("```"):
             content = content.removesuffix("```").strip()
 
-        print(f"🧾 GPT result sample:\n{content[:150]}...\n")
         return content
     except Exception as e:
-        print(f"❌ GPT call failed: {e}")
+        print(f"❌ GPT summarization failed: {e}")
         return ""
 
+def generate_markdown(events):
+    markdown_blocks = []
+    for i, event in enumerate(events):
+        print(f"🔍 Summarizing event {i+1}")
+        md = summarize_event(event["raw_text"])
+        if md:
+            # add link
+            md += f"\n🔗 [Link]({event['link']})"
+            markdown_blocks.append(md)
+
+    return "\n\n".join(markdown_blocks)
+
 def save_outputs(markdown_data, all_articles, today):
-    with open(f"{OUTPUT_DIR}/events_gpt_{today}.md", "w", encoding="utf-8") as mf:
+    with open(f"{OUTPUT_DIR}/events_md_{today}.md", "w", encoding="utf-8") as mf:
         mf.write(markdown_data)
-    with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
+    with open(f"{OUTPUT_DIR}/events_data_{today}.json", "w", encoding="utf-8") as jf:
         json.dump(all_articles, jf, indent=2, ensure_ascii=False)
-    print("✅ Output files saved to /output")
+    print("✅ Output saved to /output")
 
 def main():
     articles = fetch_all_articles()
-    article_texts = extract_text_from_articles(articles)
-
-    summaries = []
-    for i, text in enumerate(article_texts):
-        print(f"🔍 Processing article {i+1}")
-        summary = extract_event_summary(text)
-        if summary:
-            summaries.append(summary)
-
+    parsed_events = extract_text_from_articles(articles)
     today = datetime.now().strftime("%Y-%m-%d")
-    final_md = "\n\n".join(summaries)
-    save_outputs(final_md, article_texts, today)
-
-    print("🎯 Script completed.")
+    markdown_output = generate_markdown(parsed_events)
+    save_outputs(markdown_output, parsed_events, today)
+    print("🎯 Script finished.")
 
 if __name__ == "__main__":
     main()
