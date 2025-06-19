@@ -82,9 +82,9 @@ From the following article, extract only the **free events in New York City** an
   📍 Location  
   🕒 Time / Date  
   📝 One-line Description  
-  🔗 [Link](https://example.com/specific-page)
+  🔗 [Link](full link from article)
 
-**Important**: Always use the full original URL after "Full link:". Never replace it with "..." or truncate it.
+**Important**: Use the exact full URL from the "Full link:" line in the article. Do not use example.com or "..." or made-up links.
 
 Here is the article:
 
