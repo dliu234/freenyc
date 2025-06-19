@@ -2,115 +2,114 @@ import requests
 from bs4 import BeautifulSoup
 import openai
 import os
-from datetime import datetime
 import json
+from datetime import datetime
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
 SOURCE_URL = "https://theskint.com"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 OUTPUT_DIR = "output"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-def fetch_articles():
-    try:
-        response = requests.get(SOURCE_URL, headers=HEADERS, timeout=10)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
-        articles = soup.find_all('article')
-        print(f"✅ Found {len(articles)} <article> blocks")
-        return articles
-    except Exception as e:
-        print(f"❌ Failed to fetch or parse HTML: {e}")
-        return []
+def fetch_articles(max_pages=3):
+    all_articles = []
+    for page in range(1, max_pages + 1):
+        url = f"{SOURCE_URL}/page/{page}/" if page > 1 else SOURCE_URL
+        print(f"🌐 Fetching: {url}")
+        try:
+            resp = requests.get(url, headers=HEADERS, timeout=10)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+            articles = soup.find_all("article")
+            print(f"✅ Page {page}: Found {len(articles)} <article> blocks")
+            all_articles.extend(articles)
+        except Exception as e:
+            print(f"❌ Failed to fetch page {page}: {e}")
+    return all_articles
 
 def extract_text_from_articles(articles):
     event_texts = []
     for i, article in enumerate(articles):
-        paragraphs = article.find_all('p')
-        combined_text = "\n".join([p.get_text(strip=True) for p in paragraphs])
-        if len(combined_text) > 50:
-            event_texts.append(combined_text)
+        title_el = article.find("h2") or article.find("h1")
+        title = title_el.get_text(strip=True) if title_el else "Untitled"
+
+        link_el = article.find("a", href=True)
+        link = link_el["href"] if link_el else SOURCE_URL
+
+        content_el = article.find("div", class_="post-content") or article
+        content = content_el.get_text(separator="\n", strip=True)
+
+        full_text = f"{title}\n\n{content}\n\nFull link: {link}"
+
+        if len(content) > 80:
+            event_texts.append(full_text)
         else:
-            print(f"⚠️ Skipped article {i+1}, text too short")
-    print(f"📝 Extracted {len(event_texts)} usable event descriptions")
+            print(f"⚠️ Skipped article {i+1}, content too short")
+
+    print(f"📝 Extracted {len(event_texts)} usable article blocks")
     return event_texts
 
 def extract_event_summary(text):
     prompt = f"""
-Extract the following fields from the NYC event description and return a valid JSON object only (no explanation, no markdown):
+From the following article text, extract and summarize only the **free public events in New York City**.
+Respond only in markdown bullet list format like this:
 
-{{
-  "title": "",
-  "date": "",
-  "time": "",
-  "location": "",
-  "description": "",
-  "rsvp_required": true or false,
-  "source": "{SOURCE_URL}"
-}}
+- 🎉 **Event Title**  
+  📍 Location  
+  🕒 Time / Date  
+  📝 Description  
+  🔗 [Link](https://...)
 
-Event description:
+If no free NYC events are found, return nothing.
+
+Text:
 {text[:3000]}
 """
+
     try:
         result = openai.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3
+            temperature=0.4
         )
         content = result.choices[0].message.content.strip()
 
-        if content.startswith("```json"):
-            content = content.removeprefix("```json").strip()
+        # 清理 markdown fencing
+        if content.startswith("```markdown"):
+            content = content.removeprefix("```markdown").strip()
         if content.startswith("```"):
             content = content.removeprefix("```").strip()
         if content.endswith("```"):
             content = content.removesuffix("```").strip()
 
-        print(f"🧾 GPT raw: {content[:150]}...")
+        print(f"🧾 GPT result sample:\n{content[:150]}...\n")
         return content
     except Exception as e:
         print(f"❌ GPT call failed: {e}")
-        return json.dumps({"error": str(e)})
+        return ""
 
-def save_outputs(json_data, markdown_data, today):
-    with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
-        json.dump(json_data, jf, indent=2)
+def save_outputs(markdown_data, all_articles, today):
     with open(f"{OUTPUT_DIR}/events_gpt_{today}.md", "w", encoding="utf-8") as mf:
         mf.write(markdown_data)
+    with open(f"{OUTPUT_DIR}/events_gpt_{today}.json", "w", encoding="utf-8") as jf:
+        json.dump(all_articles, jf, indent=2, ensure_ascii=False)
     print("✅ Output files saved to /output")
 
 def main():
-    articles = fetch_articles()
-    event_texts = extract_text_from_articles(articles)
+    articles = fetch_articles(max_pages=3)
+    article_texts = extract_text_from_articles(articles)
+
+    summaries = []
+    for i, text in enumerate(article_texts):
+        print(f"🔍 Processing article {i+1}")
+        summary = extract_event_summary(text)
+        if summary:
+            summaries.append(summary)
 
     today = datetime.now().strftime("%Y-%m-%d")
-    json_output = []
-    markdown_output = ""
+    final_md = "\n\n".join(summaries)
+    save_outputs(final_md, article_texts, today)
 
-    for i, raw_text in enumerate(event_texts[:5]):
-        print(f"🔍 Processing event {i+1}")
-        summary = extract_event_summary(raw_text)
-        try:
-            event_data = json.loads(summary)
-            json_output.append(event_data)
-
-            md_card = f"""### 🎉 {event_data.get("title", "No Title")}
-
-📍 Location: {event_data.get("location", "Unknown")}  
-🕒 Time: {event_data.get("date", "")} {event_data.get("time", "")}  
-📝 {event_data.get("description", "")}  
-🔗 Source: [{SOURCE_URL}]({SOURCE_URL})  
-✅ RSVP Required: {event_data.get("rsvp_required", False)}
-
----
-"""
-            markdown_output += md_card + "\n"
-        except Exception as err:
-            print(f"❌ Failed to parse GPT response for event {i+1}: {err}")
-
-    save_outputs(json_output, markdown_output, today)
     print("🎯 Script completed.")
 
 if __name__ == "__main__":
