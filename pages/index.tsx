@@ -159,8 +159,6 @@ export default function Home({ content }: HomeProps) {
                   border: 'none',
                   cursor: 'pointer'
                 }}
-                onMouseOver={(e) => (e.target as HTMLElement).style.backgroundColor = '#6d28d9'}
-                onMouseOut={(e) => (e.target as HTMLElement).style.backgroundColor = '#7c3aed'}
               >
                 Get Details 🎟️
               </a>
@@ -178,9 +176,6 @@ export default function Home({ content }: HomeProps) {
             <a 
               href="https://theskint.com" 
               style={{ color: '#fbbf24', textDecoration: 'none' }}
-              onMouseOver={(e) => (e.target as HTMLElement).style.textDecoration = 'underline'}
-              onMouseOut={(e) => (e.target as HTMLElement).style.textDecoration = 'none'}
-            >
             >
               TheSkint
             </a>
