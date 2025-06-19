@@ -508,7 +508,7 @@ export default function Home({ content }: HomeProps) {
             color: 'rgba(255,255,255,0.8)'
           }}>
             <p style={{ marginBottom: '1rem', fontSize: '1.1rem' }}>
-              Data curated from{' '}
+              An NYU Student Project
               <a 
                 href="https://theskint.com" 
                 style={{ 
